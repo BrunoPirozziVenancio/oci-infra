@@ -1,0 +1,94 @@
+
+- name: Instalar Docker e Docker Compose na OCI (Ubuntu e Oracle Linux)
+  hosts: oci                             # Executa nas máquinas do grupo [oci]
+  become: true                          # Executa todas as tarefas como root (sudo)
+
+  tasks:
+
+    # -------------------- Ubuntu: Atualiza cache APT --------------------
+    
+    - name: Atualizar cache dos pacotes (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: yes                # Atualiza o índice de pacotes do apt
+      when: ansible_os_family == "Debian"
+
+    # -------------------- Oracle Linux: Atualiza cache YUM --------------------
+    
+    - name: Atualizar cache dos pacotes (Oracle Linux)
+      ansible.builtin.yum:
+        update_cache: yes                # Atualiza o índice de pacotes do yum
+      when: ansible_os_family == "RedHat"
+
+    # -------------------- Ubuntu: Instala dependências básicas para o Docker --------------------
+    
+    - name: Instalar dependências para Docker (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present                   # Garante que esses pacotes estejam instalados
+      when: ansible_os_family == "Debian"
+
+    # -------------------- Ubuntu: Adiciona chave GPG do Docker --------------------
+    
+    - name: Adicionar chave GPG do Docker (Ubuntu)
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present                   # Garante que a chave esteja presente
+      when: ansible_os_family == "Debian"
+
+    # -------------------- Ubuntu: Adiciona repositório Docker --------------------
+    
+    - name: Adicionar repositório Docker (Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present                   # Adiciona o repositório oficial do Docker
+      when: ansible_os_family == "Debian"
+
+    # -------------------- Ubuntu: Instala o Docker --------------------
+    
+    - name: Instalar Docker (Ubuntu)
+      ansible.builtin.apt:
+        name: docker-ce                  # Instala a versão comunitária do Docker
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    # -------------------- Oracle Linux: Instala o Docker --------------------
+    
+    - name: Instalar Docker (Oracle Linux)
+      ansible.builtin.yum:
+        name: docker                   # Nome do pacote padrão no Oracle Linux
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # -------------------- Inicia e habilita o serviço Docker --------------------
+    
+    - name: Habilitar e iniciar serviço Docker
+      ansible.builtin.systemd:
+        name: docker                   # Nome do serviço
+        state: started                 # Garante que está em execução
+        enabled: yes                   # Garante que inicia automaticamente no boot
+
+    # -------------------- Instala Docker Compose (binário oficial) --------------------
+    
+    - name: Instalar Docker Compose (versão estável mais recente)
+      ansible.builtin.get_url:
+        url: https://github.com/docker/compose/releases/latest/download/docker-compose-`uname -s`-`uname -m`
+        dest: /usr/local/bin/docker-compose           # Instala no path do sistema
+        mode: '0755'                                  # Permissões de execução
+
+    # -------------------- Verifica se o Docker Compose foi instalado com sucesso --------------------
+    
+    - name: Verificar instalação do Docker Compose
+      ansible.builtin.command: docker-compose --version
+      register: compose_version                       # Armazena a saída do comando
+      changed_when: false                             # Não marca como "mudou", só verifica
+
+    # -------------------- Mostra no terminal a versão instalada --------------------
+    
+    - name: Mostrar versão do Docker Compose instalada
+      ansible.builtin.debug:
+        msg: "{{ compose_version.stdout }}"           # Exibe a versão instalada no output do playbook

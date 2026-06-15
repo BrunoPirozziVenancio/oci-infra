@@ -1,0 +1,25 @@
+# Caso queida, crie um arquivo chamado, por exemplo, terraform.tfvars (ou copie o terraform.tfvars.example para terraform.tfvars) e 
+# substitua as informações com os seus dados reais da sua conta OCI nesse arquivo.
+
+
+tenancy_ocid = "ocid1.tenancy.oc1..exampleuniqueID"
+
+user_ocid = "ocid1.user.oc1..exampleuniqueID"
+
+fingerprint = "12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd:ef"
+
+private_key_path = "~/.oci/oci_api_key.pem"
+
+region = "sa-saopaulo-1"         # Normalmente é o mais usado no Brasil
+
+availability_domain = "Uocm:PHX-AD-1"         #  No README tem a explicação do significado de cada uma das partes do availability_domain
+
+compartment_id = "ocid1.compartment.oc1..exampleuniqueID"      @# É uma pasta dentro do tenancy da OCI que separa recursos
+
+shape = "VM.Standard.E2.1.Micro"       # É a definição da 
+
+subnet_id = "ocid1.subnet.oc1..exampleuniqueID"  
+
+image_id = "ocid1.image.oc1..exampleuniqueID"  
+
+ssh_public_key_path = "~/.ssh/id_rsa.pub"

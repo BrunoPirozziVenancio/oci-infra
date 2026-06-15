@@ -1,0 +1,38 @@
+#cloud-config
+# Este é um arquivo de configuração para cloud-init, que é executado durante o primeiro boot da instância, ele automatiza a configuração inicial do sistema
+
+
+
+
+package_update: true        # Atualiza a lista de pacotes disponíveis nos repositórios
+
+
+package_upgrade: true        # Realiza a atualização de todos os pacotes instalados para suas versões mais recentes
+
+
+# Lista de pacotes que serão instalados automaticamente
+packages:
+  - nginx                # Servidor web Nginx
+  - mysql-server           # Servidor de banco de dados MySQL
+  - wget                 # Ferramenta para download de arquivos da web
+
+
+# Comandos que serão executados após a instalação dos pacotes
+runcmd:
+
+  # Instalação do Java JDK 22
+  - echo "[INFO] Instalando Java 22"            # Mensagem informativa no log
+  - wget https://download.oracle.com/java/22/latest/jdk-22_linux-x64_bin.deb -O /tmp/jdk22.deb          # Download do JDK
+  - apt install -y /tmp/jdk22.deb              # Instalação do pacote baixado
+  - java -version                          
+
+
+  # Configuração do Nginx
+  - echo "[INFO] Habilitando e iniciando Nginx"
+  - systemctl enable nginx            # Para iniciar automaticamente no boot
+  - systemctl start nginx             
+
+  # Configuração do MySQL
+  - echo "[INFO] Habilitando e iniciando MySQL"
+  - systemctl enable mysql            # Para iniciar automaticamente no boot
+  - systemctl start mysql  

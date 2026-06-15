@@ -1,0 +1,124 @@
+
+- name: Instalar Nginx com hardening + monitoring (fail2ban)
+  hosts: oci                 # Define que o playbook será executado no grupo de hosts chamado 'oci'
+  become: true                 # Garante que as tarefas serão executadas com privilégios de superusuário (sudo)
+    
+  vars:
+    app_backend_port: 5000          # Porta onde sua aplicação (ex: Node.js) está rodando localmente
+    server_name: "_"            # Nome do servidor (pode ser domínio ou IP público)
+
+  tasks:
+
+    # Instala o Nginx em sistemas baseados em Debian (ex: Ubuntu)
+    
+    - name: Instalar Nginx (Ubuntu)
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    # Instala o Nginx em sistemas baseados em RedHat (ex: Oracle Linux)
+    
+    - name: Instalar Nginx (Oracle Linux)
+      ansible.builtin.yum:
+        name: nginx
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # Cria o arquivo de configuração do Nginx com proxy reverso e medidas de segurança (hardening)
+    
+    - name: Criar arquivo de configuração com proxy reverso e hardening
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/app.conf      # Local onde será salvo o novo conf
+        content: |
+          server {
+              listen 80;
+              server_name {{ server_name }};      # Usa a variável definida acima
+
+              location / {
+                  proxy_pass http://127.0.0.1:{{ app_backend_port }};      # Encaminha as requisições para o backend
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+              }
+
+              # Cabeçalhos de segurança (proteção contra XSS, clickjacking etc.)
+              
+              add_header X-Content-Type-Options nosniff;
+              add_header X-Frame-Options DENY;
+              add_header X-XSS-Protection "1; mode=block";
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+              # Bloqueia métodos HTTP perigosos (ex: PUT, DELETE, etc.)
+              
+              if ($request_method !~ ^(GET|POST|HEAD)$ ) {
+                  return 444;  # Código 444 força o Nginx a encerrar a conexão sem resposta
+              }
+
+              # Remove a exposição da versão do Nginx nas respostas
+              
+              server_tokens off;
+          }
+      notify: Reload Nginx          # Se o arquivo for alterado, será acionado o handler para recarregar o Nginx
+
+    # Ativa o novo site e remove o padrão (Ubuntu específico)
+    
+    - name: Ativar site e desativar default (Ubuntu)
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/app.conf
+        dest: /etc/nginx/sites-enabled/app.conf
+        state: link
+        force: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Remover site default (Ubuntu)
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      when: ansible_distribution == "Ubuntu"
+
+    # Reinicia o serviço Nginx para aplicar alterações
+    
+    - name: Reiniciar Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    # Instala o Fail2Ban em sistemas Debian
+    
+    - name: Instalar fail2ban (Ubuntu)
+      ansible.builtin.apt:
+        name: fail2ban
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    # Instala o Fail2Ban em sistemas RedHat
+    
+    - name: Instalar fail2ban (Oracle Linux)
+      ansible.builtin.yum:
+        name: fail2ban
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # Habilita e inicia o serviço fail2ban
+    
+    - name: Habilitar fail2ban
+      ansible.builtin.systemd:
+        name: fail2ban
+        enabled: yes
+        state: started
+
+  handlers:
+  
+    # Handler para recarregar o Nginx sempre que a configuração mudar
+    
+    - name: Reload Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+

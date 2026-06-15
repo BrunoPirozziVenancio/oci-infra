@@ -1,0 +1,21 @@
+#cloud-configuration
+
+# Atualiza os pacotes do sistema
+
+package_update: true
+package_upgrade: true
+
+# Instala pacotes essenciais: Nginx pra servir conteúdo, curl pra testes
+
+packages:
+  - nginx
+  - curl
+
+# Comandos que serão executados após o boot
+
+runcmd:
+  - systemctl enable nginx   # Ativa nginx pra subir automaticamente no boot
+  - systemctl start nginx    # Inicia o serviço na hora
+  - echo "<h1>Servidor $HOSTNAME - Backend OK!</h1>" > /usr/share/nginx/html/index.html
+  
+    # Substitui a página padrão com uma mensagem simples pra identificar qual instância respondeu

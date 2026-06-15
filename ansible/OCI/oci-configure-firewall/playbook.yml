@@ -1,0 +1,81 @@
+
+- name: Configurar firewall na OCI (Ubuntu ou Oracle Linux)
+  hosts: oci                   # Aplica nas VMs do grupo 'oci'
+  become: true                   # Usa privilégios de root para executar as tarefas
+
+  tasks:
+
+    - name: Detectar sistema e aplicar regras UFW no Ubuntu
+      block:                               # Bloco de tarefas para Ubuntu (Debian)
+        - name: Instalar UFW (Ubuntu)
+          ansible.builtin.apt:              # Usa o gerenciador apt para instalar pacote
+            name: ufw
+            state: present
+            update_cache: yes                   # Atualiza o cache antes de instalar
+
+        - name: Permitir SSH no UFW
+          ansible.builtin.ufw:                  # Configura o firewall UFW para liberar SSH
+            rule: allow
+            name: OpenSSH                   # Regra para o serviço OpenSSH (porta 22)
+
+        - name: Permitir HTTP no UFW (opcional)
+          ansible.builtin.ufw:
+            rule: allow
+            port: 80                    # Porta HTTP padrão
+            proto: tcp                  # Protocolo TCP
+
+        - name: Permitir HTTPS no UFW (opcional)
+          ansible.builtin.ufw:
+            rule: allow
+            port: 443                     # Porta HTTPS padrão
+            proto: tcp
+
+        - name: Ativar UFW
+          ansible.builtin.command: ufw enable           # Ativa o firewall
+          args:
+            warn: false                                   # Evita warning na saída
+          register: ufw_enable                         # Registra o resultado da execução
+          failed_when: ufw_enable.rc != 0 and "already enabled" not in ufw_enable.stderr
+          # Não falha se o firewall já estiver ativado
+
+      when: ansible_os_family == "Debian"            # Executa só se for sistema Debian (Ubuntu)
+
+
+    - name: Detectar sistema e aplicar regras firewalld no Oracle Linux
+      block:                                          # Bloco de tarefas para Oracle Linux (RedHat)
+        - name: Instalar firewalld (Oracle Linux)
+          ansible.builtin.yum:                      # Usa o gerenciador yum para instalar pacote
+            name: firewalld
+            state: present
+
+        - name: Garantir que firewalld está rodando e habilitado
+          ansible.builtin.systemd:                 # Controla o serviço firewalld via systemd
+            name: firewalld      
+            state: started                         # Garante que está iniciado
+            enabled: yes                           # Garante que inicia no boot
+
+        - name: Permitir SSH no firewalld
+          ansible.builtin.firewalld:               # Libera o serviço ssh no firewall firewalld
+            service: ssh
+            permanent: yes                       # Permanece após reboot
+            state: enabled                      # Habilita a regra
+            immediate: yes                      # Aplica imediatamente
+
+        - name: Permitir HTTP no firewalld (opcional)
+          ansible.builtin.firewalld:
+            port: 80/tcp                         # Porta HTTP TCP
+            permanent: yes
+            state: enabled
+            immediate: yes
+
+        - name: Permitir HTTPS no firewalld (opcional)
+          ansible.builtin.firewalld:
+            port: 443/tcp                         # Porta HTTPS TCP
+            permanent: yes
+            state: enabled
+            immediate: yes
+
+        - name: Recarregar firewalld para aplicar regras        x  
+          ansible.builtin.command: firewall-cmd --reload        # Recarrega as regras para garantir que as alterações foram aplicadas
+        
+      when: ansible_os_family == "RedHat"                   # Executa só se for sistema RedHat (Oracle Linux)

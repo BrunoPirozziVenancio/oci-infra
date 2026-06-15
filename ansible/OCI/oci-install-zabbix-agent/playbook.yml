@@ -1,0 +1,81 @@
+
+- name: Instalar e configurar agente Zabbix na OCI
+  hosts: oci
+  become: true
+  vars:
+    zabbix_server_ip: "10.0.0.100"   # Endereço do servidor Zabbix para onde o agente vai reportar
+
+  tasks:
+
+    - name: Atualizar cache dos pacotes
+      ansible.builtin.apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"   # Se o sistema for Debian/Ubuntu, roda o update do apt.
+
+
+    - name: Atualizar cache dos pacotes (Oracle Linux)
+      ansible.builtin.yum:
+        update_cache: yes
+      when: ansible_os_family == "RedHat"      # Se for Oracle Linux (base RedHat), atualiza o yum.
+
+
+    - name: Instalar pacotes necessários para o repositório Zabbix (Ubuntu)
+      ansible.builtin.apt:
+        name: curl,gnupg
+        state: present
+      when: ansible_os_family == "Debian"      # Curl e gnupg são necessários para adicionar a chave GPG do repositório.
+
+
+    - name: Instalar pacotes necessários para o repositório Zabbix (Oracle Linux)
+      ansible.builtin.yum:
+        name: curl,gnupg2
+        state: present
+      when: ansible_os_family == "RedHat"      # Equivalente para Oracle Linux.
+
+
+    - name: Adicionar repositório oficial do Zabbix (Ubuntu 22.04)
+      ansible.builtin.apt_repository:
+        repo: "deb http://repo.zabbix.com/zabbix/6.4/ubuntu jammy main"
+        state: present
+        filename: zabbix
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+
+
+    - name: Adicionar repositório oficial do Zabbix (Oracle Linux 9)
+      ansible.builtin.yum_repository:
+        name: zabbix
+        description: "Zabbix Official Repository - $releasever"
+        baseurl: "http://repo.zabbix.com/zabbix/6.4/rhel/9/x86_64/"
+        gpgcheck: yes
+        gpgkey: "https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX-A14FE591"
+        enabled: yes
+      when: ansible_distribution == "OracleLinux" and ansible_distribution_major_version == "9"
+
+
+    - name: Instalar o agente Zabbix
+      ansible.builtin.package:
+        name: zabbix-agent
+        state: present
+
+    - name: Configurar servidor Zabbix no arquivo do agente
+      ansible.builtin.lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^Server='
+        line: "Server={{ zabbix_server_ip }}"
+        backup: yes
+
+
+    - name: Configurar hostname para o agente (opcional)
+      ansible.builtin.lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^Hostname='
+        line: "Hostname={{ ansible_hostname }}"
+        backup: yes
+
+
+    - name: Habilitar e iniciar o serviço zabbix-agent
+      ansible.builtin.systemd:
+        name: zabbix-agent
+        enabled: yes
+        state: started
+

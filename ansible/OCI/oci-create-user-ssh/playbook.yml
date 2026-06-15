@@ -1,0 +1,77 @@
+  
+- name: Criação segura de usuário com chave SSH
+  hosts: oci
+  become: true     # Eleva o privilégio para root (usa sudo)
+
+  vars:
+    novo_usuario: devops
+    chave_ssh_publica: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... chave pública aqui"      #  Define a chave pública SSH que será colocada 
+#                                                                                                  no authorized_keys desse usuário 
+#                                                                                                   (para login sem senha via SSH)
+  
+  tasks:
+
+
+    - name: Garantir que o shell /bin/bash existe
+      ansible.builtin.stat:
+        path: /bin/bash
+      register: shell_bash
+
+
+    - name: Criar o usuário
+      ansible.builtin.user:
+        name: "{{ novo_usuario }}"
+        shell: "{{ shell_bash.stat.exists | ternary('/bin/bash', '/bin/sh') }}"
+        create_home: yes
+
+# Cria o usuário com bash como shell padrão e com diretório /home/devops
+
+    - name: Criar o usuário
+      ansible.builtin.user:
+        name: "{{ novo_usuario }}"
+        shell: /bin/bash
+        create_home: yes
+
+
+
+# Cria o diretório .ssh dentro da home do usuário, com permissões corretas para segurança (somente o dono pode acessar)
+
+    - name: Criar diretório .ssh
+      ansible.builtin.file:
+        path: "/home/{{ novo_usuario }}/.ssh"
+        state: directory
+        owner: "{{ novo_usuario }}"
+        group: "{{ novo_usuario }}"
+        mode: '0700'
+
+
+
+# Cria o arquivo authorized_keys e coloca a chave pública lá dentro, permitindo login SSH com a chave correspondente
+
+    - name: Adicionar chave pública no authorized_keys
+      ansible.builtin.copy:
+        content: "{{ chave_ssh_publica }}"
+        dest: "/home/{{ novo_usuario }}/.ssh/authorized_keys"
+        owner: "{{ novo_usuario }}"
+        group: "{{ novo_usuario }}"
+        mode: '0600'
+
+
+
+# Cria um arquivo em /etc/sudoers.d/ que dá permissão para o usuário usar sudo sem pedir senha (é bem útil para fazer automações)
+
+ - name: Configurar sudo (se permitido)
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/{{ novo_usuario }}
+        line: "{{ novo_usuario }} ALL=(ALL) {{ permitir_sudo_sem_senha | ternary('NOPASSWD:', '') }}ALL"
+        create: yes
+        mode: '0440'
+      when: permitir_sudo_sem_senha is defined
+      notify: Reiniciar SSH (se necessário)
+
+  handlers:
+
+    - name: Reiniciar SSH (se necessário)
+      ansible.builtin.service:
+        name: ssh
+        state: restarted

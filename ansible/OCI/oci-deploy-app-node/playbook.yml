@@ -1,0 +1,90 @@
+
+- name: Deploy de aplicação Node.js em instância OCI
+  hosts: oci                # Roda nas máquinas do grupo "oci" definido no seu inventário
+  become: true              # Eleva permissões (sudo) para instalar pacotes e rodar comandos
+
+  vars:
+    repo_url: "https://github.com/heroku/node-js-sample.git"          # Repositório da aplicação Node.js
+    app_dir: "/opt/node-app"                                        # Caminho onde a aplicação será clonada
+
+  tasks:
+  
+
+    # Dependências básicas para Ubuntu
+    
+    - name: Instalar dependências base (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - curl            # Necessário para baixar instaladores
+          - git           # Para clonar o repositório da aplicação
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"            # Só executa se o sistema for da família Debian (Ubuntu, etc)
+
+
+    # Dependências básicas para Oracle Linux
+    
+    - name: Instalar dependências base (Oracle Linux)
+      ansible.builtin.yum:
+        name:
+          - curl
+          - git
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "RedHat"  # Só executa se for Oracle Linux, CentOS, RHEL, etc
+
+
+    # Instala o Node.js no Ubuntu usando o repositório da NodeSource
+    
+    - name: Instalar Node.js 18.x (Ubuntu)
+      block:
+        - name: Adicionar repositório NodeSource
+          ansible.builtin.shell: "curl -fsSL https://deb.nodesource.com/setup_18.x | bash -"
+          args:
+            executable: /bin/bash            # Usa o Bash para rodar o script
+
+        - name: Instalar Node.js
+          ansible.builtin.apt:
+            name: nodejs
+            state: present
+      when: ansible_distribution == "Ubuntu"
+
+
+    # Instala o Node.js no Oracle Linux da mesma forma, mas com o instalador RPM
+    
+    - name: Instalar Node.js 18.x (Oracle Linux)
+      block:
+        - name: Baixar e executar instalador NodeSource
+          ansible.builtin.shell: "curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -"
+          args:
+            executable: /bin/bash
+
+        - name: Instalar Node.js
+          ansible.builtin.yum:
+            name: nodejs
+            state: present
+      when: ansible_distribution == "OracleLinux"
+
+  
+    # Clona a aplicação do GitHub para o diretório especificado
+    
+    - name: Clonar repositório da aplicação Node.js
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: main           # Usa o branch principal
+        force: yes            # Substitui conteúdo existente, se houver
+
+
+    # Instala as dependências da aplicação via npm
+
+    - name: Instalar dependências do Node.js com npm
+      ansible.builtin.shell: npm install
+      args:
+        chdir: "{{ app_dir }}"          # Executa dentro da pasta da aplicação
+
+    # Inicia a aplicação com npm start usando nohup (para rodar em segundo plano)
+    - name: Iniciar a aplicação com npm start (modo simples)
+      ansible.builtin.shell: nohup npm start &
+      args:
+        chdir: "{{ app_dir }}"  # Também dentro do diretório da aplicação

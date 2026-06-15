@@ -1,0 +1,3 @@
+oci os object put --bucket-name bruno-backups \
+  --name "logs/access.log" \
+  --file exemplos_upload/access.log

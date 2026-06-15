@@ -1,0 +1,18 @@
+        # Configuração da região OCI onde os recursos serão provisionados
+     
+region = "sa-saopaulo-1"  
+
+
+availability_domain = "kZCp:SA-SAOPAULO-1-AD-1"            # Formato do domínio de disponibilidade específico dentro da região <availability_domain_name>:<region>-AD-<number>  
+
+
+compartment_id = "ocid1.compartment.oc1..exampleuniqueID"            # Identificador único do compartimento OCI onde os recursos serão criados, os compartimentos organizam recursos na OCI
+
+
+subnet_id = "ocid1.subnet.oc1..exampleuniqueID"              # Identificador único da sub-rede onde a instância será conectada, ela define a rede específica para a conexão da VM, o valor tem que ser um OCID real válido de subnet no VCN
+
+
+image_ocid = "ocid1.image.oc1..exampleUbuntuImageOCID"                  # Identificador único da imagem base para a instância, o valor real deve ser um OCID válido de imagem na sua região escolhida 
+
+ 
+ssh_public_key_path = "~/.ssh/id_rsa.pub"              # Caminho para o arquivo contendo a chave pública SSH, ela é injetada na instãncia para realizar o acesso remoto seguro 
