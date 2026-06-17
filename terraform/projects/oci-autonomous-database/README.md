@@ -29,7 +29,7 @@ terraform init
 terraform plan
 terraform apply
 
-### 3. Conectar ao banco via SQL*Plus na EC2
+### 3. Conectar ao banco via SQL*Plus na instancia
 ssh -i chave.pem opc@IP_DA_INSTANCIA
 sqlplus admin@APPDB_high
 
