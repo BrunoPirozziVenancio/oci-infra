@@ -1,0 +1,92 @@
+---
+- name: Criar usuario prometheus
+  user:
+    name: prometheus
+    shell: /bin/false
+    system: true
+- name: Criar diretorios do prometheus
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+  loop:
+    - /etc/prometheus
+    - /var/lib/prometheus
+- name: Baixar Prometheus
+  get_url:
+    url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: /tmp/prometheus.tar.gz
+- name: Extrair Prometheus
+  unarchive:
+    src: /tmp/prometheus.tar.gz
+    dest: /tmp/
+    remote_src: yes
+- name: Copiar binarios do Prometheus
+  copy:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    remote_src: yes
+  loop:
+    - prometheus
+    - promtool
+- name: Criar configuracao do Prometheus
+  copy:
+    dest: /etc/prometheus/prometheus.yml
+    owner: prometheus
+    group: prometheus
+    content: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+      scrape_configs:
+        - job_name: database
+          static_configs:
+            - targets: ['DATABASE_IP:9100']
+              labels:
+                role: database
+                server: database
+        - job_name: proxy
+          static_configs:
+            - targets: ['PROXY_IP:9100']
+              labels:
+                role: proxy
+                server: proxy
+        - job_name: backend-1
+          static_configs:
+            - targets: ['BACKEND_1_IP:9100']
+              labels:
+                role: backend
+                server: backend-1
+        - job_name: backend-2
+          static_configs:
+            - targets: ['BACKEND_2_IP:9100']
+              labels:
+                role: backend
+                server: backend-2
+        - job_name: backend-3
+          static_configs:
+            - targets: ['BACKEND_3_IP:9100']
+              labels:
+                role: backend
+                server: backend-3
+- name: Criar servico systemd do Prometheus
+  copy:
+    dest: /etc/systemd/system/prometheus.service
+    content: |
+      [Unit]
+      Description=Prometheus
+      After=network.target
+      [Service]
+      User=prometheus
+      ExecStart=/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/prometheus
+      Restart=always
+      [Install]
+      WantedBy=multi-user.target
+- name: Iniciar e habilitar Prometheus
+  systemd:
+    name: prometheus
+    state: started
+    enabled: yes
+    daemon_reload: yes

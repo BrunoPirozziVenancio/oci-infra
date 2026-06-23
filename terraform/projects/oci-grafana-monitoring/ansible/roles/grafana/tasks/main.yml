@@ -1,0 +1,68 @@
+---
+- name: Adicionar repositorio do Grafana
+  get_url:
+    url: https://packages.grafana.com/gpg.key
+    dest: /etc/pki/rpm-gpg/grafana.key
+- name: Criar arquivo de repositorio do Grafana
+  copy:
+    dest: /etc/yum.repos.d/grafana.repo
+    content: |
+      [grafana]
+      name=grafana
+      baseurl=https://packages.grafana.com/oss/rpm
+      repo_gpgcheck=1
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://packages.grafana.com/gpg.key
+      sslverify=1
+      sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+- name: Instalar Grafana
+  dnf:
+    name: grafana
+    state: present
+- name: Configurar datasource do Prometheus no Grafana
+  copy:
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://localhost:9090
+          isDefault: true
+- name: Criar diretorio de dashboards
+  file:
+    path: /etc/grafana/provisioning/dashboards
+    state: directory
+    owner: grafana
+    group: grafana
+- name: Configurar provisionamento de dashboards
+  copy:
+    dest: /etc/grafana/provisioning/dashboards/dashboards.yml
+    content: |
+      apiVersion: 1
+      providers:
+        - name: default
+          folder: Infraestrutura
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards
+- name: Criar diretorio de dashboards do Grafana
+  file:
+    path: /var/lib/grafana/dashboards
+    state: directory
+    owner: grafana
+    group: grafana
+- name: Copiar dashboard de monitoramento
+  copy:
+    src: dashboard.json
+    dest: /var/lib/grafana/dashboards/dashboard.json
+    owner: grafana
+    group: grafana
+- name: Iniciar e habilitar Grafana
+  systemd:
+    name: grafana-server
+    state: started
+    enabled: yes
+    daemon_reload: yes

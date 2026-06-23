@@ -1,0 +1,12 @@
+---
+- name: Instalar Node Exporter em todos os servidores
+  hosts: all_servers
+  become: true
+  roles:
+    - node_exporter
+- name: Instalar Prometheus e Grafana no servidor de monitoramento
+  hosts: monitoring
+  become: true
+  roles:
+    - prometheus
+    - grafana
